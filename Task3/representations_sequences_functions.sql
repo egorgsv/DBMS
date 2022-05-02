@@ -1,0 +1,286 @@
+-- Задание 3.1
+-- номера и имена сотрудников, которых принимали на работу зимой
+
+CREATE OR REPLACE VIEW WINTER_EMP
+    AS SELECT EMPNO, ENAME FROM EMP
+        WHERE EXTRACT(MONTH FROM HIREDATE) < 3 OR
+            EXTRACT(MONTH FROM HIREDATE) = 12
+/
+SELECT * FROM WINTER_EMP
+/
+
+
+-- имена сотрудников, которые являются непосредственными начальниками не менее, чем трех подчиненных
+
+CREATE OR REPLACE VIEW MGR_EMP
+AS SELECT CHIEF.ENAME, COUNT(CHIEF.ENAME) COUNT FROM EMP
+        JOIN EMP CHIEF ON EMP.MGR = CHIEF.EMPNO
+        GROUP BY CHIEF.ENAME
+        HAVING COUNT(CHIEF.ENAME) > 2
+/
+SELECT * FROM USER_VIEWS
+/
+--  Задание 3.2
+
+DROP SEQUENCE DEPARTMENTS_SEQ
+/
+CREATE SEQUENCE DEPARTMENTS_SEQ START WITH 51 INCREMENT BY 1 CACHE 20
+/
+DROP TABLE DEPT1
+/
+CREATE TABLE DEPT1
+(
+    DEPTNO NUMBER(2,0) NOT NULL ENABLE,
+    DNAME VARCHAR2(50),
+    LOC VARCHAR2(50),
+    CONSTRAINT DEPT1_PK PRIMARY KEY (DEPTNO)
+)
+
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+INSERT INTO DEPT1 VALUES (DEPARTMENTS_SEQ.NEXTVAL,
+'DEPARTMENT' || TO_CHAR(DEPARTMENTS_SEQ.CURRVAL),
+'PETERHOF')
+/
+SELECT * FROM DEPT1
+/
+SELECT * FROM USER_SEQUENCES
+/
+-- Задание 3.3
+-- Создайте и вызовите хранимую функцию, вычисляющую факториал натурального числа.
+
+CREATE OR REPLACE FUNCTION fact(x number)
+RETURN number
+IS
+   f number;
+BEGIN
+   IF x=0 THEN
+      f := 1;
+   ELSE
+      f := x * fact(x-1);
+   END IF;
+RETURN f;
+END;
+/
+DECLARE
+   num number;
+   factorial number;
+BEGIN
+   num:= 6;
+   factorial := fact(num);
+   dbms_output.put_line(' Factorial '|| num || ' is ' || factorial);
+END;
+/
+
+--   Создайте и продемонстрируйте вызов функции, определяющей для каждого сотрудника таблицы EMP количество дней, которое он проработал (HIREDATE – дата приема в таблице EMP).
+
+CREATE OR REPLACE FUNCTION NUMOFDAYS(EMPN IN NUMBER)
+RETURN NUMBER
+IS
+NDAYS NUMBER;
+BEGIN
+SELECT (trunc(SYSDATE) - HIREDATE) INTO NDAYS FROM EMP WHERE emp.empno = EMPN;
+RETURN NDAYS;
+END;
+/
+SELECT NUMOFDAYS(EMPNO) FROM EMP
+/
+CREATE OR REPLACE FUNCTION MGRNAMES(EMPN NUMBER, NAMES_LIST VARCHAR2)
+RETURN VARCHAR2
+AS
+MGR_NAME VARCHAR2(200);
+MGR_NO NUMBER;
+NEW_NAMES_LIST VARCHAR2(200);
+BEGIN
+    SELECT MGR INTO MGR_NO FROM EMP
+            WHERE EMP.EMPNO = EMPN;
+    IF MGR_NO IS NOT NULL THEN
+        SELECT EMPNO, ENAME INTO MGR_NO, MGR_NAME FROM EMP
+            WHERE EMP.EMPNO = MGR_NO;
+        NEW_NAMES_LIST := MGRNAMES(MGR_NO, NEW_NAMES_LIST) || ' ' || MGR_NAME;
+        RETURN NEW_NAMES_LIST;
+    ELSE
+        RETURN ' ';
+    END IF;
+END MGRNAMES;
+/
+SELECT ENAME, MGRNAMES(EMPNO, '') FROM EMP
+
+
+/
+-- Задание 3.4
+CREATE OR REPLACE PROCEDURE avgnumbers
+IS
+COUNT_EMP NUMBER;
+COUNT_DEPT NUMBER;
+SUM_SAL NUMBER;
+JOB_EMP NUMBER;
+BEGIN
+     SELECT COUNT(*) INTO COUNT_EMP FROM EMP;
+     SELECT COUNT(*) INTO COUNT_DEPT FROM DEPT;
+     SELECT SUM(SAL) INTO SUM_SAL FROM  EMP;
+     SELECT COUNT(DISTINCT JOB) INTO JOB_EMP FROM EMP;
+     dbms_output.put_line('Всего сотрудников: ' || COUNT_EMP);
+     dbms_output.put_line('Всего отделов: ' || COUNT_DEPT);
+     dbms_output.put_line('Количествл различных должностей: ' || JOB_EMP);
+     dbms_output.put_line('Cуммарная зарплата: ' || SUM_SAL);
+
+END avgnumbers;
+/
+BEGIN
+avgnumbers;
+END;
+/
+-- Задание 3.5
+DROP TABLE debug_log
+/
+CREATE TABLE debug_log (
+    ID NUMBER(3) NOT NULL UNIQUE,
+    LOGTIME TIMESTAMP NOT NULL,
+    Message VARCHAR2(200),
+    inSource VARCHAR2(50)
+)
+/
+DROP SEQUENCE LOG_SEQ
+/
+CREATE SEQUENCE LOG_SEQ START WITH 1 INCREMENT BY 1
+/
+CREATE OR REPLACE PROCEDURE MINMAX_HIREDATE(
+    MIN_ENAME OUT VARCHAR2,
+    MAX_ENAME OUT VARCHAR2)
+IS
+BEGIN
+    SELECT ENAME INTO MIN_ENAME FROM EMP
+    WHERE HIREDATE = (SELECT MIN(HIREDATE) FROM EMP);
+    SELECT ENAME INTO MAX_ENAME FROM EMP
+    WHERE HIREDATE = (SELECT MAX(HIREDATE) FROM EMP);
+END MINMAX_HIREDATE;
+/
+DECLARE
+      MIN_ENAME VARCHAR2(50);
+      MAX_ENAME VARCHAR2(50);
+BEGIN
+    MINMAX_HIREDATE(MIN_ENAME, MAX_ENAME);
+    INSERT INTO debug_log(id, LogTime, Message, inSource)
+    VALUES(log_seq.nextval, sysdate, 'MIN_ENAME = ' || MIN_ENAME || ' MAX_ENAME = ' || MAX_ENAME, 'MINMAX_HIREDATE');
+END;
+/
+SELECT * FROM debug_log
+/
+-- Задание 3.6
+create or replace procedure LogInfo
+    (inInfoMessage in varchar2,
+    inSource in varchar2 )
+is
+    PRAGMA AUTONOMOUS_TRANSACTION;
+begin
+    insert into debug_log(id, LogTime, Message, inSource)
+    values (log_seq.nextval, sysdate, inInfoMessage, inSource);
+    commit;
+exception
+    when others then
+            return;
+end LogInfo;
+/
+CREATE OR REPLACE PROCEDURE DIVIDE
+      ( a   IN  NUMBER,
+        b   IN  NUMBER,
+        div OUT NUMBER
+       )
+IS
+BEGIN
+     div := a/b;
+     dbms_output.put_line('Результат деления' || div);
+END  DIVIDE;
+/
+DECLARE
+    a NUMBER;
+    b NUMBER;
+    div NUMBER;
+BEGIN
+    a := 1;
+    b := 0;
+    DIVIDE(a, b, div);
+    exception
+        when ZERO_DIVIDE then
+           LogInfo('a = ' || a || ' b = ' || b, 'DIVIDE');
+
+END;
+/
+CREATE OR REPLACE PROCEDURE WRONG_EMPNO
+      ( EMPN   IN   NUMBER,
+        EMP_HIREDATE OUT DATE
+        )
+IS
+BEGIN
+     SELECT HIREDATE INTO EMP_HIREDATE FROM EMP
+     WHERE EMPNO = EMPN;
+END  WRONG_EMPNO;
+/
+DECLARE
+      EMPN NUMBER;
+      EMP_HIREDATE DATE;
+BEGIN
+    EMPN := 1111;
+    WRONG_EMPNO(EMPN, EMP_HIREDATE);
+    exception
+        when NO_DATA_FOUND then
+           LogInfo('EMPNO = ' || EMPN, 'WRONG_EMPNO');
+END;
+/
+CREATE OR REPLACE PROCEDURE TOOMANYROWS
+    (
+        EMPNAME OUT VARCHAR2
+    )
+IS
+BEGIN
+     SELECT ENAME INTO EMPNAME FROM EMP;
+END  TOOMANYROWS;
+/
+DECLARE
+    EMPNAME VARCHAR2(15);
+BEGIN
+    TOOMANYROWS(EMPNAME);
+    DBMS_OUTPUT.PUT_LINE('First name is :' || EMPNAME);
+    exception
+        when TOO_MANY_ROWS then
+           LogInfo('TOOMANYROWS', 'TOOMANYROWS');
+END;
+/
+SELECT * FROM DEBUG_LOG
+/
